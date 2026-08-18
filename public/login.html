@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Fish Battle — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/login.css" />
+</head>
+<body>
+
+<main class="auth">
+
+  <!-- ============================ SIGN-IN CARD ============================ -->
+  <div class="auth__card" id="auth-card">
+    <header class="auth__brand">
+      <span class="auth__brand-mark" aria-hidden="true">🐟</span>
+      <h1 class="auth__title">Fish Battle</h1>
+      <p class="auth__subtitle">Live arena access</p>
+    </header>
+
+    <div class="auth__tabs" role="tablist">
+      <button class="auth__tab is-active" id="tab-login" type="button" role="tab" aria-selected="true">Login</button>
+      <button class="auth__tab" id="tab-register" type="button" role="tab" aria-selected="false">Register</button>
+    </div>
+
+    <p class="auth__error" id="auth-error" role="alert"></p>
+    <p class="auth__notice" id="auth-notice" role="status"></p>
+
+    <form class="auth__form" id="form-login" novalidate>
+      <label class="field">
+        <span class="field__label">Email</span>
+        <input class="field__input" id="login-email" type="email" autocomplete="username" required />
+      </label>
+      <label class="field">
+        <span class="field__label">Password</span>
+        <input class="field__input" id="login-password" type="password" autocomplete="current-password" required />
+      </label>
+      <button class="btn btn--primary" id="login-submit" type="submit">Sign In</button>
+    </form>
+
+    <form class="auth__form" id="form-register" novalidate hidden>
+      <label class="field">
+        <span class="field__label">Email</span>
+        <input class="field__input" id="register-email" type="email" autocomplete="username" required />
+      </label>
+      <label class="field">
+        <span class="field__label">Password</span>
+        <input class="field__input" id="register-password" type="password" autocomplete="new-password" required minlength="6" />
+      </label>
+      <button class="btn btn--primary" id="register-submit" type="submit">Create Account</button>
+    </form>
+  </div>
+
+  <!-- ==================== SUBSCRIPTION BLOCKED OVERLAY ===================== -->
+  <div class="blocked" id="blocked-screen" hidden>
+    <div class="blocked__card">
+      <div class="blocked__icon" aria-hidden="true">🔒</div>
+      <h2 class="blocked__title">Abonəlik Aktiv Deyil</h2>
+      <p class="blocked__body">
+        Sistemi istifadə etmək üçün WhatsApp vasitəsilə bizimlə əlaqə saxlayıb abonəlik əldə edin.
+      </p>
+
+      <!-- Placeholder number — replace 994XXXXXXXXX (and the label below) with the real one. -->
+      <a class="btn btn--whatsapp" id="whatsapp-link" href="https://wa.me/994XXXXXXXXX" target="_blank" rel="noopener noreferrer">
+        <span aria-hidden="true">💬</span> WhatsApp: +994 XX XXX XX XX
+      </a>
+
+      <p class="blocked__email" id="blocked-email"></p>
+      <p class="blocked__status" id="blocked-status"></p>
+
+      <div class="blocked__actions">
+        <button class="btn btn--primary" id="recheck-btn" type="button">Yenidən Yoxla</button>
+        <button class="btn btn--ghost" id="logout-btn" type="button">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script type="module" src="js/login.js"></script>
+</body>
+</html>

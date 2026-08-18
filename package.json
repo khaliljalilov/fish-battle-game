@@ -1,0 +1,81 @@
+{
+  "name": "tiktok-fish-battle",
+  "version": "1.0.1",
+  "description": "TikTok Live 3D fish battle arena (Three.js) with local MongoDB state persistence and secure admin reset.",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "SIMULATE=true SIMULATE_AUTOSPAWN=true node server/server.js",
+    "checkkey": "node check-key.js",
+    "desktop": "electron electron/main.js",
+    "obfuscate": "node tools/obfuscate.js",
+    "clean:dist": "node tools/clean-dist.js",
+    "build:exe": "node tools/clean-dist.js && node tools/obfuscate.js && electron-builder --win"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.6.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^6.8.0",
+    "mongoose": "^9.9.2",
+    "socket.io": "^4.7.5",
+    "tiktok-live-connector": "^2.4.3"
+  },
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3",
+    "javascript-obfuscator": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "build": {
+    "appId": "com.fishbattle.arena",
+    "productName": "Fish Battle Arena",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "package.json",
+      "electron/**/*",
+      "!server/**/*",
+      "!src/**/*",
+      "!public/**/*",
+      "!build/**/*",
+      "!dist/**/*",
+      "!.env",
+      "!.env.example",
+      "!check-key.js",
+      "!README.md",
+      "!CLAUDE.md",
+      "!.claude/**/*",
+      "!tools/**/*",
+      "!.git/**/*",
+      "!.gitignore",
+      {
+        "from": "build/obfuscated/server",
+        "to": "server"
+      },
+      {
+        "from": "build/obfuscated/public",
+        "to": "public"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

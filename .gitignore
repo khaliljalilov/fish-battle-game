@@ -1,0 +1,9 @@
+node_modules/
+.env
+src/.env
+.claude/settings.local.json
+public/models/*.glb
+# Build artifacts from `npm run build:exe` — regenerated from source every
+# build (build/) or straight packaging output (dist/), never hand-edited.
+build/
+dist/

@@ -1,0 +1,1300 @@
+/* ===========================================================================
+   Fish Battle HUD
+
+   Direction: a submarine sonar console, not a gaming overlay. Panels read as
+   backlit instrument glass over black water; the only saturated colour is the
+   sonar teal, with red reserved exclusively for damage and danger so a viewer
+   watching on a phone always knows what red means.
+
+   Signature element: the depth rail on each leaderboard row — ten etched ticks,
+   one per evolution band, lit up to the fish's current level. It shows how far
+   a fish has climbed and how far it has left without printing a second number.
+   =========================================================================== */
+
+:root {
+  --abyss:   #04101a;
+  --hull:    #0a222c;
+  --glass:   rgba(10, 34, 44, 0.72);
+  --edge:    rgba(53, 240, 200, 0.18);
+  --sonar:   #35f0c8;
+  --alarm:   #ff4d6d;
+  --amber:   #ffc44d;
+  --foam:    #dcecef;
+  --mute:    #6d8f9a;
+
+  --font-hud: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  --font-num: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --gutter: 18px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--abyss);
+  color: var(--foam);
+  font-family: var(--font-hud);
+  -webkit-font-smoothing: antialiased;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ------------------------------------------------------------- HUD frame -- */
+
+#hud {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;   /* only specific children opt back in */
+  padding: var(--gutter);
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr minmax(200px, 280px);
+  grid-template-rows: auto 1fr auto;
+  gap: var(--gutter);
+}
+
+#hud-left {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* --------------------------------------------------------------- brand ---- */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Sonar ping: a ring that expands and fades on a slow loop. */
+.brand__mark {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--sonar);
+  flex: none;
+}
+.brand__mark::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 50%;
+  border: 1.5px solid var(--sonar);
+  animation: ping 2.8s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+@keyframes ping {
+  0%   { transform: scale(1);   opacity: 0.9; }
+  70%  { transform: scale(2.1); opacity: 0; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+.brand__text { display: flex; flex-direction: column; line-height: 1.1; }
+.brand__title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.brand__sub {
+  font-family: var(--font-num);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--mute);
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+/* --------------------------------------------------------------- panel ---- */
+
+.panel {
+  pointer-events: auto;
+  background: var(--glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  padding: 12px 12px 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 9px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(53, 240, 200, 0.14);
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--sonar);
+}
+
+.panel__count {
+  font-family: var(--font-num);
+  font-size: 11px;
+  color: var(--mute);
+  letter-spacing: 0.06em;
+}
+
+.panel__hint {
+  margin: 9px 0 0;
+  font-family: var(--font-num);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: rgba(109, 143, 154, 0.75);
+}
+
+/* ---------------------------------------------------------- leaderboard --- */
+
+.board {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px 12px 1fr 26px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.018);
+  transition: background 160ms ease;
+}
+
+.row.is-watching {
+  background: rgba(53, 240, 200, 0.09);
+  box-shadow: inset 2px 0 0 var(--sonar);
+}
+
+.row__rank {
+  font-family: var(--font-num);
+  font-size: 11px;
+  color: var(--mute);
+  text-align: center;
+}
+
+/* --- the signature: an etched depth gauge, one tick per evolution band --- */
+.row__depth {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 1.5px;
+  height: 30px;
+  justify-content: flex-start;
+}
+.row__depth .tick {
+  display: block;
+  height: 1.5px;
+  width: 7px;
+  background: rgba(109, 143, 154, 0.3);
+  border-radius: 1px;
+  transition: background 220ms ease, width 220ms ease;
+}
+.row__depth .tick--lit {
+  background: var(--sonar);
+  width: 11px;
+}
+.row.is-titan .row__depth .tick--lit { background: var(--amber); }
+
+.row__body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+
+.row__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.row__name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row__hp {
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sonar);
+  flex: none;
+}
+.row.is-titan .row__hp { color: var(--amber); }
+
+.row__meta {
+  font-family: var(--font-num);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--mute);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row__bar {
+  display: block;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.row__fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(53, 240, 200, 0.55), var(--sonar));
+  transform-origin: left center;
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.row.is-titan .row__fill {
+  background: linear-gradient(90deg, rgba(255, 196, 77, 0.5), var(--amber));
+}
+
+.row__eye {
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--mute);
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+.row__eye:hover { color: var(--sonar); border-color: var(--edge); background: rgba(53, 240, 200, 0.07); }
+.row__eye:focus-visible { outline: 2px solid var(--sonar); outline-offset: 1px; }
+.row.is-watching .row__eye { color: var(--sonar); }
+
+/* --------------------------------------------------------- status chips --- */
+
+.status-strip {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.chip {
+  font-family: var(--font-num);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  padding: 4px 8px;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  background: rgba(4, 16, 26, 0.6);
+  backdrop-filter: blur(8px);
+}
+.chip--ok   { color: var(--sonar); }
+.chip--warn { color: var(--alarm); }
+.chip--info { color: var(--amber); }
+
+/* --------------------------------------------------------------- ticker --- */
+
+.ticker {
+  grid-column: 3;
+  grid-row: 2;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: start;
+  justify-self: end;
+  width: 100%;
+  max-width: 280px;
+}
+
+.feed {
+  font-family: var(--font-num);
+  font-size: 10.5px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  padding: 6px 9px;
+  border-left: 2px solid var(--mute);
+  background: rgba(4, 16, 26, 0.62);
+  backdrop-filter: blur(8px);
+  color: var(--foam);
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 700ms ease, transform 700ms ease;
+  animation: feed-in 260ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.feed.is-fading { opacity: 0; transform: translateX(14px); }
+
+.feed--gift  { border-left-color: var(--amber); }
+.feed--power { border-left-color: #9b8cff; }
+.feed--alert { border-left-color: var(--alarm); }
+.feed--ok    { border-left-color: var(--sonar); }
+.feed--warn  { border-left-color: #d99a3d; }
+
+@keyframes feed-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ---------------------------------------------------------- spectating ---- */
+
+.spectating {
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: center;
+  align-self: end;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+  padding: 8px 8px 8px 14px;
+  background: var(--glass);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+}
+.spectating.is-active { display: flex; }
+
+.spectating__label {
+  font-family: var(--font-num);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.spectating__name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.spectating__exit {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  color: var(--abyss);
+  background: var(--sonar);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.spectating__exit:hover { filter: brightness(1.1); }
+.spectating__exit:focus-visible { outline: 2px solid var(--foam); outline-offset: 2px; }
+
+/* ----------------------------------------------------------- nameplates --- */
+/*
+ * Avatar + name + one big HP number, above each fish.
+ *
+ * Designed for a phone held at arm's length next to a scrolling comment feed.
+ * Everything is oversized, high-contrast, and outlined. The viewer's own face
+ * is the anchor — people scan a crowded tank looking for themselves, not for
+ * 11px usernames.
+ */
+
+#nameplates, #popups {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 900;
+  overflow: hidden;
+}
+
+.plate {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  will-change: transform;
+}
+
+.plate__avatar {
+  /* Sized for a phone held at arm's length. At 34px the face was a smudge —
+     and the face is the whole point, since viewers scan for themselves. */
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ffd23c;
+  box-shadow:
+    0 0 0 2.5px rgba(0, 0, 0, 0.6),
+    0 0 18px rgba(255, 200, 40, 0.6);
+  background: #0a2233;
+}
+
+.plate__name {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.15;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.98), 0 0 8px rgba(0, 0, 0, 0.9);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The number IS the health bar. Big, yellow, outlined so it survives passing
+   over a bright fish or the white tank rim. */
+.plate__hp {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 700;
+  /* The HP number is the primary read of the entire game. Make it big. */
+  font-size: 30px;
+  line-height: 1;
+  color: #ffd23c;
+  letter-spacing: -0.01em;
+  -webkit-text-stroke: 1.4px rgba(0, 0, 0, 0.92);
+  paint-order: stroke fill;
+  text-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.98),
+    0 0 16px rgba(255, 190, 40, 0.6);
+}
+
+/* Trend colouring while the counter rolls. Green climbing, red falling —
+   readable at a glance without reading the number itself. */
+.plate[data-trend='up'] .plate__hp   { color: #6dff8a; }
+.plate[data-trend='down'] .plate__hp { color: #ff5a68; }
+
+/* Slim bar under the number: number for precision, bar for instant read. */
+.plate__bar {
+  width: 76px;
+  height: 6px;
+  margin-top: 3px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 210, 60, 0.35);
+  overflow: hidden;
+}
+.plate__fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(180deg, #ffe066 0%, #ffc21e 55%, #f0a000 100%);
+  box-shadow: 0 0 8px rgba(255, 200, 40, 0.6);
+}
+.plate[data-state='titan'] .plate__fill {
+  background: linear-gradient(180deg, #ffb469, #ff7a1e 60%, #e04f00);
+}
+.plate[data-state='rotor'] .plate__fill {
+  background: linear-gradient(180deg, #ffb08a, #ff6a3c 60%, #d63200);
+}
+
+.plate[data-state='titan'] .plate__hp { color: #ff8a3c; }
+.plate[data-state='titan'] .plate__avatar {
+  border-color: #ff8a3c;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.55), 0 0 22px rgba(255, 120, 40, 0.75);
+}
+.plate[data-state='rotor'] .plate__hp { color: #ff6a3c; }
+.plate[data-state='rotor'] .plate__avatar { border-color: #ff6a3c; }
+
+/* Countdown for a sustained gift power (Bullet Storm / Drain / Beam Rotor). */
+.plate__timer {
+  display: none;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------- floating damage --- */
+/*
+ * "-240" rising off a fish that just got hit. The single highest-impact HUD
+ * element in the game: without it a collision is two models touching, with it
+ * every impact has a visible consequence.
+ */
+.popup {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1;
+  color: #ff4d5e;
+  -webkit-text-stroke: 1.4px rgba(0, 0, 0, 0.92);
+  paint-order: stroke fill;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  will-change: transform, opacity;
+  transition: transform 1s cubic-bezier(0.15, 0.7, 0.3, 1), opacity 1s ease-out;
+}
+
+.popup.is-rising {
+  transform: translate(-50%, -50%) translateY(-64px) scale(1.18);
+  opacity: 0;
+}
+
+/* Start visible, then the transition fades it out as it rises. */
+.popup:not(.is-rising) { opacity: 1; }
+
+.popup--heavy { font-size: 42px; color: #ff2d44; }
+.popup--heal  { color: #6dff8a; }
+.popup--gift  { color: #ffd23c; font-size: 36px; }
+
+/* ------------------------------------------------------------ leader HUD --- */
+/*
+ * One face, one number, top centre. A leaderboard list is for the streamer;
+ * this is for the viewer — a single target to root for or against, which is the
+ * whole engine of a gifting stream.
+ */
+.leader {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-140%);
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 18px 8px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(9, 46, 71, 0.94), rgba(6, 28, 45, 0.94));
+  border: 2px solid rgba(255, 210, 60, 0.75);
+  box-shadow:
+    0 6px 26px rgba(0, 0, 0, 0.45),
+    0 0 26px rgba(255, 200, 40, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2), opacity 0.4s ease;
+}
+
+.leader.is-visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.leader__crown {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-11deg);
+  font-size: 21px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.leader__avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2.5px solid #ffd23c;
+  background: #0a2233;
+  box-shadow: 0 0 16px rgba(255, 200, 40, 0.55);
+}
+
+.leader__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.05;
+}
+
+.leader__name {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: #ffffff;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leader__hp {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: #ffd23c;
+  text-shadow: 0 0 12px rgba(255, 200, 40, 0.5);
+}
+
+.leader__level {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  color: #06243a;
+  background: linear-gradient(180deg, #ffe066, #ffb800);
+  padding: 5px 11px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(255, 184, 0, 0.4);
+}
+
+/* Lead change: the most exciting moment the game produces. Announce it. */
+@keyframes leaderTakeover {
+  0%   { transform: translateX(-50%) scale(1); }
+  35%  { transform: translateX(-50%) scale(1.13); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+.leader.is-new { animation: leaderTakeover 0.65s ease-out; }
+
+/* ---------------------------------------------------------- nuke overlay --- */
+
+.nuke-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: #000000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Fade in over 0.3s, hold at full black for 2s, fade out — 2.6s total. The
+   JS timer in ui.js#showNuke clears `is-active` on the same 2.6s, so a rapid
+   second nuke can always restart the animation cleanly. */
+.nuke-overlay.is-active {
+  visibility: visible;
+  animation: nukeFade 2.6s ease forwards;
+}
+
+@keyframes nukeFade {
+  0%    { opacity: 0; }
+  11.5% { opacity: 1; }
+  88.5% { opacity: 1; }
+  100%  { opacity: 0; }
+}
+
+.nuke-overlay__avatar {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #ffd23c;
+  background: #0a2233;
+  box-shadow: 0 0 60px rgba(255, 200, 40, 0.65);
+}
+
+.nuke-overlay__name {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 48px;
+  color: #ffd23c;
+  text-shadow: 0 0 20px rgba(255, 200, 40, 0.6);
+  text-align: center;
+}
+
+.nuke-overlay__label {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 64px;
+  color: var(--alarm);
+  text-shadow: 0 0 26px rgba(255, 77, 109, 0.75);
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------- loader --- */
+
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #0d3a48 0%, #04101a 62%);
+  transition: opacity 600ms ease, visibility 600ms;
+}
+.loader.is-hidden { opacity: 0; visibility: hidden; }
+
+.loader__inner { text-align: center; width: min(360px, 78vw); }
+
+.loader__title {
+  margin: 0 0 6px;
+  font-size: clamp(28px, 6vw, 44px);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.loader__note {
+  margin: 0 0 20px;
+  font-family: var(--font-num);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--mute);
+}
+
+.loader__track {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.loader__bar {
+  display: block;
+  height: 100%;
+  background: var(--sonar);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* ---------------------------------------------------------------- admin --- */
+
+.admin {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: none;
+  place-items: center;
+  background: rgba(2, 8, 14, 0.78);
+  backdrop-filter: blur(6px);
+  padding: 20px;
+}
+.admin.is-open { display: grid; }
+
+.admin__card {
+  width: min(420px, 100%);
+  background: var(--hull);
+  border: 1px solid var(--alarm);
+  border-radius: 3px;
+  padding: 22px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+}
+
+.admin__title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--alarm);
+}
+
+.admin__body {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(220, 236, 239, 0.78);
+}
+
+.field { display: block; margin-bottom: 12px; }
+.field__label {
+  display: block;
+  font-family: var(--font-num);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 5px;
+}
+.field__input {
+  width: 100%;
+  padding: 9px 10px;
+  font-family: var(--font-num);
+  font-size: 13px;
+  color: var(--foam);
+  background: rgba(4, 16, 26, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+.field__input:focus {
+  outline: none;
+  border-color: var(--alarm);
+}
+
+.admin__error {
+  min-height: 16px;
+  margin: 2px 0 14px;
+  font-family: var(--font-num);
+  font-size: 11px;
+  color: var(--alarm);
+}
+
+.admin__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.admin__row .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+}
+
+.admin__actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.btn {
+  font-family: var(--font-hud);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 9px 16px;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.btn:focus-visible { outline: 2px solid var(--foam); outline-offset: 2px; }
+.btn--ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--foam);
+}
+.btn--ghost:hover { border-color: rgba(255, 255, 255, 0.38); }
+.btn--danger { background: var(--alarm); color: #1a0308; }
+.btn--danger:hover { filter: brightness(1.08); }
+.btn--danger:disabled { opacity: 0.55; cursor: default; }
+
+/* ------------------------------------------------------------ responsive -- */
+
+@media (max-width: 860px) {
+  #hud {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto;
+    --gutter: 12px;
+  }
+  #hud-left { grid-column: 1; grid-row: 2; }
+  .status-strip { grid-column: 1; grid-row: 1; justify-content: flex-start; }
+  .ticker { grid-column: 1; grid-row: 3; justify-self: start; max-width: 100%; }
+  .spectating { grid-column: 1; grid-row: 4; justify-self: stretch; }
+  .plate { width: 96px; }
+  .plate__name { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+
+/* ------------------------------------------------------------- admin toggle */
+/* Fixed top-right, stacked directly below the test panel tab (18px tab +
+   38px button + 10px gap = 66px) so the two 38px circles never overlap. Low
+   opacity at rest so it doesn't sit in shot on stream; brightens on
+   hover/focus so it's easy to find, especially on a touch device with no
+   keyboard chord to fall back on. */
+.admin-toggle {
+  position: fixed;
+  top: 66px;
+  right: 18px;
+  z-index: 9999;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(120, 220, 245, 0.24);
+  background: rgba(4, 26, 38, 0.6);
+  backdrop-filter: blur(8px);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.18s ease, border-color 0.18s ease, background 0.18s ease, transform 0.12s ease;
+}
+.admin-toggle:hover,
+.admin-toggle:focus-visible {
+  opacity: 1;
+  border-color: rgba(120, 220, 245, 0.6);
+  background: rgba(6, 38, 54, 0.85);
+}
+.admin-toggle:active { transform: scale(0.94); }
+.admin-toggle.is-open {
+  opacity: 1;
+  border-color: var(--alarm);
+}
+
+/* ------------------------------------------------------------- sound toggle */
+/* Sits under the leaderboard, out of the way of the action but reachable during
+   a stream. Pointer events are re-enabled because #hud itself is click-through. */
+.sound-toggle {
+  position: absolute;
+  left: 22px;
+  bottom: 22px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid rgba(120, 220, 245, 0.28);
+  border-radius: 999px;
+  background: rgba(4, 26, 38, 0.72);
+  backdrop-filter: blur(8px);
+  color: #cfeffb;
+  font-family: 'Chakra Petch', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.12s ease;
+}
+.sound-toggle:hover {
+  border-color: rgba(120, 220, 245, 0.6);
+  background: rgba(6, 38, 54, 0.85);
+}
+.sound-toggle:active { transform: scale(0.97); }
+.sound-toggle.is-muted {
+  color: #8aa2ad;
+  border-color: rgba(140, 165, 178, 0.22);
+}
+.sound-toggle__icon { font-size: 14px; line-height: 1; }
+
+
+/* ------------------------------------------------------------- test panel --- */
+/*
+ * Fires real gift events through the server so every tier and power can be
+ * seen without begging a viewer to send a 100-coin gift mid-stream.
+ * Collapsed by default — it must never be in shot accidentally.
+ *
+ * Fixed top-right, first of the two stacked controls (see the admin-toggle
+ * comment below for why both live outside #hud). The body is a plain second
+ * flex child, so opening it just pushes content downward from the tab —
+ * no separate anchoring needed.
+ */
+.testpanel {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+/* Circular icon tab, matching .admin-toggle's size and hover language so the
+ * two stacked buttons read as one consistent control pair. */
+.testpanel__tab {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 210, 60, 0.35);
+  background: rgba(6, 30, 46, 0.7);
+  backdrop-filter: blur(8px);
+  color: #ffd23c;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.18s ease, border-color 0.18s ease, background 0.18s ease, transform 0.12s ease;
+}
+.testpanel__tab:hover,
+.testpanel__tab:focus-visible {
+  opacity: 1;
+  border-color: #ffd23c;
+  background: rgba(8, 40, 60, 0.85);
+}
+.testpanel__tab:active { transform: scale(0.94); }
+.testpanel.is-open .testpanel__tab { opacity: 1; border-color: #ffd23c; }
+
+.testpanel__body {
+  display: none;
+  width: 264px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(120, 220, 245, 0.28);
+  background: rgba(4, 24, 38, 0.95);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+}
+.testpanel.is-open .testpanel__body { display: block; }
+
+.testpanel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.testpanel__field span {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7fb8cc;
+  font-weight: 600;
+}
+.testpanel__field input {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 220, 245, 0.3);
+  background: rgba(0, 0, 0, 0.4);
+  color: #dff4ff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.testpanel__field input:focus {
+  outline: none;
+  border-color: #ffd23c;
+}
+
+.testpanel__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.testpanel__row { margin-top: 6px; }
+
+.tbtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: 9px;
+  border: 1px solid rgba(120, 220, 245, 0.25);
+  background: rgba(10, 44, 66, 0.85);
+  color: #dff4ff;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.tbtn em {
+  font-style: normal;
+  font-size: 8.5px;
+  font-weight: 600;
+  opacity: 0.62;
+  letter-spacing: 0.04em;
+}
+.tbtn:hover { border-color: rgba(255, 210, 60, 0.65); background: rgba(16, 60, 88, 0.9); }
+.tbtn:active { transform: scale(0.95); }
+.tbtn--big { grid-column: span 2; border-color: rgba(255, 140, 60, 0.5); color: #ffcf8a; }
+.tbtn--wide { width: 100%; }
+
+.testpanel__hint {
+  margin: 10px 0 0;
+  font-size: 9px;
+  line-height: 1.4;
+  color: #6f9fb4;
+  font-weight: 500;
+}
+
+/* ====================== TIKTOK CONNECT PANEL ======================
+ * Fixed top-left, outside #hud (see the comment in index.html). Same neon
+ * cyan/magenta pair already used for the in-game shockwave rings
+ * (0x00fff7 / 0xff00e6 in main.js), reused here as CSS vars so the whole
+ * stream reads as one palette instead of two unrelated color schemes.
+ */
+.tiktok-panel {
+  position: fixed;
+  /* Bottom-right corner is otherwise empty: .testpanel/.admin-toggle occupy
+     the top-right, .sound-toggle sits bottom-left, and #hud's own bottom-right
+     grid cell (column 3, row 3) has nothing placed in it. The event ticker
+     above (column 3, row 2) is capped at 7 entries by ui.js and grows down
+     from the top of its own row, so it cannot reach down into this corner. */
+  bottom: 20px;
+  right: 20px;
+  z-index: 10000;
+  width: 250px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(0, 255, 247, 0.35);
+  background: rgba(6, 10, 20, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55), 0 0 18px rgba(255, 0, 230, 0.08);
+  font-family: 'Poppins', var(--font-hud), system-ui, sans-serif;
+  pointer-events: auto;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.tiktok-panel.is-connected {
+  border-color: rgba(255, 0, 230, 0.4);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55), 0 0 22px rgba(255, 0, 230, 0.16);
+}
+
+.tiktok-panel__connect {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tiktok-panel__connect[hidden] { display: none; }
+
+/* Real text, not just a placeholder — a placeholder disappears the moment
+   you start typing, which reads as "this field vanished" rather than "this
+   field has your key in it." */
+.tiktok-panel__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(234, 255, 251, 0.55);
+  margin-bottom: -2px;
+}
+
+/* Admin key gets its own full-width row above username+Connect — three
+   flex:1 items (2 inputs + a button) in a 250px panel was too cramped to
+   type into comfortably. */
+.tiktok-panel__connect-row2 {
+  display: flex;
+  gap: 8px;
+}
+.tiktok-panel__input--full { width: 100%; }
+
+.tiktok-panel__input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 247, 0.3);
+  background: rgba(0, 0, 0, 0.4);
+  color: #eafffb;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color 0.15s ease;
+}
+.tiktok-panel__input::placeholder { color: rgba(234, 255, 251, 0.4); }
+.tiktok-panel__input:focus { outline: none; border-color: #00fff7; }
+.tiktok-panel__input:disabled { opacity: 0.5; }
+
+.tiktok-panel__btn {
+  flex: none;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: filter 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+}
+.tiktok-panel__btn:active { transform: scale(0.96); }
+.tiktok-panel__btn:disabled { cursor: default; opacity: 0.6; }
+
+.tiktok-panel__btn--primary {
+  background: linear-gradient(135deg, #00fff7, #ff00e6);
+  color: #04141a;
+}
+.tiktok-panel__btn--primary:hover:not(:disabled) { filter: brightness(1.1); }
+.tiktok-panel__btn--primary.is-loading { filter: grayscale(0.4); }
+
+.tiktok-panel__btn--danger {
+  width: 100%;
+  margin-top: 10px;
+  background: rgba(255, 77, 109, 0.14);
+  border-color: rgba(255, 77, 109, 0.55);
+  color: #ff90a4;
+}
+.tiktok-panel__btn--danger:hover { background: rgba(255, 77, 109, 0.24); }
+
+.tiktok-panel__error {
+  margin: 8px 0 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: #ff4d6d;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease, margin 0.25s ease;
+}
+.tiktok-panel__error.is-visible {
+  max-height: 40px;
+  opacity: 1;
+}
+
+.tiktok-panel__profile {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 255, 247, 0.18);
+  animation: tk-profile-in 0.25s ease;
+}
+.tiktok-panel__profile[hidden] { display: none; }
+@keyframes tk-profile-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tiktok-panel__profile-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tiktok-panel__avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  flex: none;
+  border: 1.5px solid rgba(0, 255, 247, 0.5);
+  background: #0a0a12;
+}
+
+.tiktok-panel__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tiktok-panel__name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #eafffb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tiktok-panel__badge {
+  align-self: flex-start;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: var(--font-num);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #2be878;
+  background: rgba(43, 232, 120, 0.14);
+  border: 1px solid rgba(43, 232, 120, 0.4);
+}

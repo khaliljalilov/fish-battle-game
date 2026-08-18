@@ -1,0 +1,242 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Fish Battle — Live Arena</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+
+<!--
+  Three.js is pulled from a CDN. To run fully offline instead:
+    npm i three
+  then point these two entries at ./vendor/three.module.js and ./vendor/jsm/
+  after copying node_modules/three/build and node_modules/three/examples/jsm.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<!-- Floating nameplates are positioned by JS; the layer itself never eats clicks. -->
+<div id="nameplates" aria-hidden="true"></div>
+
+<!-- Floating damage numbers. Pooled by ui.js; never eats clicks. -->
+<div id="popups" aria-hidden="true"></div>
+
+<!-- Leader banner: one face, one number, impossible to miss. -->
+<div id="leader" class="leader" aria-hidden="true">
+  <div class="leader__crown">👑</div>
+  <img id="leader-avatar" class="leader__avatar" alt="" referrerpolicy="no-referrer">
+  <div class="leader__text">
+    <span id="leader-name" class="leader__name"></span>
+    <span id="leader-hp" class="leader__hp"></span>
+  </div>
+  <span id="leader-level" class="leader__level"></span>
+</div>
+
+<!-- ============================ HUD ============================ -->
+<div id="hud">
+
+  <aside id="hud-left">
+    <header class="brand">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <span class="brand__text">
+        <span class="brand__title">Fish Battle</span>
+        <span class="brand__sub">Live arena · depth 50m</span>
+      </span>
+    </header>
+
+    <section class="panel" aria-labelledby="board-title">
+      <div class="panel__head">
+        <h2 class="panel__title" id="board-title">Top 5</h2>
+        <span class="panel__count" id="fish-count">0 / 40</span>
+      </div>
+      <ol class="board" id="leaderboard-rows"></ol>
+      <p class="panel__hint">👁 follow · scroll to zoom · 0 reset · O orientation · Esc wide</p>
+    </section>
+  </aside>
+
+  <div id="status-strip" class="status-strip"></div>
+
+  <ul id="ticker" class="ticker" aria-live="polite" aria-label="Event feed"></ul>
+
+<button id="sound-toggle" class="sound-toggle is-muted" type="button" aria-pressed="false" title="Sound on/off">
+    <span class="sound-toggle__icon" id="sound-icon">🔇</span>
+    <span class="sound-toggle__label" id="sound-label">Sound off</span>
+  </button>
+
+  <div id="spectating" class="spectating">
+    <span class="spectating__label">Following</span>
+    <span class="spectating__name" id="spectating-name"></span>
+    <button class="spectating__exit" id="exit-spectate" type="button">Wide shot</button>
+  </div>
+
+</div>
+
+<!-- ======================== NUKE OVERLAY ========================= -->
+<div id="nuke-overlay" class="nuke-overlay" aria-hidden="true">
+  <img id="nuke-avatar" class="nuke-overlay__avatar" alt="" referrerpolicy="no-referrer">
+  <div id="nuke-name" class="nuke-overlay__name"></div>
+  <div class="nuke-overlay__label">☠️ ARENA NUKE</div>
+</div>
+
+<!-- ========================== LOADER =========================== -->
+<div id="loader" class="loader">
+  <div class="loader__inner">
+    <h1 class="loader__title">Fish Battle</h1>
+    <p class="loader__note" id="loader-note">Filling the tank…</p>
+    <div class="loader__track"><span class="loader__bar" id="loader-bar"></span></div>
+  </div>
+</div>
+
+<!-- ==================== TIKTOK CONNECT PANEL (bottom-right) ==================
+     A top-level sibling of #hud, not nested inside it — same reason as the
+     top-right controls below: #hud is its own stacking context, so a
+     descendant's z-index can never out-rank a sibling of #hud. Bottom-right
+     is otherwise empty screen real estate (see the comment on .tiktok-panel
+     in style.css for why), so it sits there free of every other overlay.
+
+     This is the REAL control for the single server-side TikTok connection
+     (server.js startTikTok()/stopTikTok(), broadcast to every viewer) — not
+     a per-viewer lookup. Connect/Disconnect hit admin-key-gated endpoints
+     (POST /api/admin/tiktok/connect|disconnect) for the same reason arena
+     reset is gated: this app collects real gifts, so redirecting where they
+     come from has to require the same key, not be open to any visitor. -->
+<div id="tiktok-panel" class="tiktok-panel">
+  <div class="tiktok-panel__connect" id="tiktok-connect-row">
+    <label class="tiktok-panel__label" for="tiktok-admin-key-input">Admin Key</label>
+    <input id="tiktok-admin-key-input" class="tiktok-panel__input tiktok-panel__input--full" type="password"
+           placeholder="Server ADMIN_SECRET_KEY" autocomplete="off" spellcheck="false">
+    <div class="tiktok-panel__connect-row2">
+      <input id="tiktok-username-input" class="tiktok-panel__input" type="text"
+             placeholder="@username" autocomplete="off" spellcheck="false" maxlength="40">
+      <button id="tiktok-connect-btn" class="tiktok-panel__btn tiktok-panel__btn--primary" type="button">Connect</button>
+    </div>
+  </div>
+
+  <p class="tiktok-panel__error" id="tiktok-error" role="alert"></p>
+
+  <div class="tiktok-panel__profile" id="tiktok-profile" hidden>
+    <div class="tiktok-panel__profile-row">
+      <img id="tiktok-avatar" class="tiktok-panel__avatar" alt="" referrerpolicy="no-referrer">
+      <div class="tiktok-panel__info">
+        <span class="tiktok-panel__name" id="tiktok-display-name"></span>
+        <span class="tiktok-panel__badge" id="tiktok-live-badge">● LIVE</span>
+      </div>
+    </div>
+    <button id="tiktok-disconnect-btn" class="tiktok-panel__btn tiktok-panel__btn--danger" type="button">Disconnect</button>
+  </div>
+</div>
+
+<!-- ==================== TOP-RIGHT FLOATING CONTROLS ====================
+     Test panel and Settings, stacked in fixed top-right order. Both are
+     top-level siblings here (not nested inside #hud) on purpose: #hud is
+     position:fixed with its own z-index, which makes it a stacking context,
+     and no z-index set on a descendant can ever out-rank a sibling of #hud
+     itself. Nesting either button back inside #hud would silently cap it
+     under #hud's stacking order regardless of what z-index it's given. -->
+
+<!-- Test panel: fire any gift or power without a live stream. Dim circular
+     tab like the settings gear; its body drops open below it. -->
+<div id="testpanel" class="testpanel">
+  <button id="testpanel-toggle" class="testpanel__tab" type="button" title="Test panel">🧪</button>
+  <div class="testpanel__body" id="testpanel-body">
+    <label class="testpanel__field">
+      <span>Sender</span>
+      <input id="test-user" type="text" value="tester1" autocomplete="off">
+    </label>
+    <div class="testpanel__grid">
+      <button class="tbtn" data-coins="1"   data-gift="Rose">🌹 Rose<em>1 · +25</em></button>
+      <button class="tbtn" data-coins="1"   data-gift="Chilli Pepper">🌶️ Chilli<em>1 · +25 Nitro</em></button>
+      <button class="tbtn" data-coins="5"   data-gift="Gatling Bullet Storm">🔫 Bullets<em>5 · +125</em></button>
+      <button class="tbtn" data-coins="10"  data-gift="Heart">💧 Heart<em>10 · +250</em></button>
+      <button class="tbtn" data-coins="20"  data-gift="Bouncing Logo Spheres">🔮 Pinball<em>20 · +700</em></button>
+      <button class="tbtn tbtn--big" data-coins="100" data-gift="Rotor Blade Storm">🚁 Rotor<em>100 · TITAN</em></button>
+    </div>
+    <div class="testpanel__row">
+      <button class="tbtn tbtn--wide" id="test-spawn5">➕ Add 5 random fish</button>
+    </div>
+    <div class="testpanel__row">
+      <button class="tbtn tbtn--wide" id="test-spawn20">➕ Add 20 fish (stress)</button>
+    </div>
+    <p class="testpanel__hint">Each button sends a real gift event through the server, exactly as TikTok would.</p>
+  </div>
+</div>
+
+<!-- Settings toggle, stacked directly below the test panel tab so the two
+     never overlap. Ctrl + Alt + Shift + A still works as a fallback — this
+     just makes the panel reachable without a key combo, which a touch device
+     can't produce anyway. Opening the panel is not the security boundary;
+     the server admin key and typed confirmation still are. -->
+<button id="admin-toggle" class="admin-toggle" type="button"
+        aria-haspopup="dialog" aria-expanded="false" aria-controls="admin"
+        title="Admin panel (Ctrl+Alt+Shift+A)">
+  <span class="admin-toggle__icon" aria-hidden="true">⚙️</span>
+</button>
+
+<!-- ====================== ADMIN RESET PANEL ====================
+     Opened via the gear button above or Ctrl + Alt + Shift + A. Reaching the
+     panel is easy on purpose now; actually clearing the arena still needs the
+     server key plus a typed confirmation below.
+-->
+<div id="admin" class="admin" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+  <div class="admin__card">
+    <h2 class="admin__title" id="admin-title">Clear the arena</h2>
+    <p class="admin__body">
+      This deletes every fish from the local database, including HP, levels, and
+      coins spent. Viewers will start from scratch. There is no undo.
+    </p>
+
+    <div class="admin__row">
+      <span class="field__label">Sound</span>
+      <button id="admin-sound-toggle" class="btn btn--ghost" type="button" aria-pressed="false">
+        <span id="admin-sound-icon" aria-hidden="true">🔇</span>
+        <span id="admin-sound-label">Sound off</span>
+      </button>
+    </div>
+
+    <div class="admin__row">
+      <span class="field__label">Session</span>
+      <button id="logout-btn" class="btn btn--ghost" type="button">Sign out</button>
+    </div>
+
+    <label class="field">
+      <span class="field__label">Admin key</span>
+      <input id="admin-key" class="field__input" type="password" autocomplete="off" spellcheck="false" placeholder="Server ADMIN_SECRET_KEY" />
+    </label>
+
+    <label class="field">
+      <span class="field__label">Type RESET to confirm</span>
+      <input id="admin-confirm" class="field__input" type="text" autocomplete="off" spellcheck="false" placeholder="RESET" />
+    </label>
+
+    <p class="admin__error" id="admin-error" role="alert"></p>
+
+    <div class="admin__actions">
+      <button id="admin-cancel" class="btn btn--ghost" type="button">Cancel</button>
+      <button id="admin-submit" class="btn btn--danger" type="button">Clear arena</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script type="module" src="js/main.js?v=20260815"></script>
+<script type="module" src="js/tiktokPanel.js?v=20260815"></script>
+</body>
+</html>

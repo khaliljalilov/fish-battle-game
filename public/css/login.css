@@ -1,0 +1,261 @@
+/* ===========================================================================
+   Fish Battle — Sign In
+
+   Same submarine-console palette as the game HUD (public/style.css): backlit
+   instrument glass over black water, sonar teal as the one saturated accent,
+   red reserved for errors/danger only.
+   =========================================================================== */
+
+:root {
+  --abyss:   #04101a;
+  --hull:    #0a222c;
+  --glass:   rgba(10, 34, 44, 0.72);
+  --edge:    rgba(53, 240, 200, 0.18);
+  --sonar:   #35f0c8;
+  --alarm:   #ff4d6d;
+  --amber:   #ffc44d;
+  --foam:    #dcecef;
+  --mute:    #6d8f9a;
+
+  --font-hud: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  --font-num: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: radial-gradient(circle at 50% 20%, #0d2c3a 0%, var(--abyss) 65%);
+  color: var(--foam);
+  font-family: var(--font-hud);
+  -webkit-font-smoothing: antialiased;
+}
+
+.auth {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+/* ------------------------------------------------------------ sign-in card */
+
+.auth__card {
+  width: min(380px, 100%);
+  background: var(--glass);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 28px 26px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+.auth__brand {
+  text-align: center;
+  margin-bottom: 22px;
+}
+.auth__brand-mark {
+  font-size: 30px;
+  display: block;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 0 10px rgba(53, 240, 200, 0.5));
+}
+.auth__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--foam);
+}
+.auth__subtitle {
+  margin: 4px 0 0;
+  font-family: var(--font-num);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.auth__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 4px;
+  background: rgba(4, 16, 26, 0.6);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.auth__tab {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mute);
+  font-family: var(--font-hud);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.auth__tab.is-active {
+  background: var(--sonar);
+  color: #04141a;
+}
+
+.auth__error {
+  min-height: 16px;
+  margin: 0 0 12px;
+  font-family: var(--font-num);
+  font-size: 11.5px;
+  color: var(--alarm);
+}
+.auth__error:empty { margin: 0; }
+
+.auth__notice {
+  min-height: 16px;
+  margin: 0 0 12px;
+  font-family: var(--font-num);
+  font-size: 11.5px;
+  color: var(--sonar);
+}
+.auth__notice:empty { margin: 0; }
+
+.auth__form { display: block; }
+.auth__form[hidden] { display: none; }
+
+.field { display: block; margin-bottom: 14px; }
+.field__label {
+  display: block;
+  font-family: var(--font-num);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 5px;
+}
+.field__input {
+  width: 100%;
+  padding: 10px 11px;
+  font-family: var(--font-num);
+  font-size: 13px;
+  color: var(--foam);
+  background: rgba(4, 16, 26, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+.field__input:focus {
+  outline: none;
+  border-color: var(--sonar);
+}
+
+.btn {
+  width: 100%;
+  font-family: var(--font-hud);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 11px 16px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.btn:focus-visible { outline: 2px solid var(--foam); outline-offset: 2px; }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.btn--primary { background: var(--sonar); color: #04141a; }
+.btn--primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn--ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--foam);
+  margin-top: 8px;
+}
+.btn--ghost:hover { border-color: rgba(255, 255, 255, 0.38); }
+
+/* --------------------------------------------------- subscription blocked */
+
+.blocked {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(2, 8, 14, 0.86);
+  backdrop-filter: blur(6px);
+}
+
+/* Author-origin `.blocked{display:grid}` beats the UA `[hidden]{display:none}`
+   rule at equal specificity because origin outranks specificity in the
+   cascade — so the hidden attribute alone does not hide this element. Raise
+   specificity here to restore that behavior. */
+.blocked[hidden] {
+  display: none;
+}
+
+.blocked__card {
+  width: min(420px, 100%);
+  text-align: center;
+  background: var(--hull);
+  border: 1px solid var(--alarm);
+  border-radius: 6px;
+  padding: 30px 26px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+}
+
+.blocked__icon { font-size: 34px; margin-bottom: 10px; }
+
+.blocked__title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--alarm);
+}
+
+.blocked__body {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(220, 236, 239, 0.85);
+}
+
+/* WhatsApp brand green — recognisable at a glance as the way out of this screen. */
+.btn--whatsapp {
+  display: block;
+  width: 100%;
+  margin-bottom: 18px;
+  text-decoration: none;
+  text-align: center;
+  background: #25d366;
+  color: #04140a;
+}
+.btn--whatsapp:hover { filter: brightness(1.08); }
+
+.blocked__email {
+  margin: 0 0 6px;
+  font-family: var(--font-num);
+  font-size: 11.5px;
+  color: var(--mute);
+}
+.blocked__email:empty { display: none; }
+
+.blocked__status {
+  min-height: 14px;
+  margin: 0 0 14px;
+  font-family: var(--font-num);
+  font-size: 11px;
+  color: var(--sonar);
+}
+.blocked__status:empty { margin: 0; }
+
+.blocked__actions { display: flex; flex-direction: column; gap: 0; }
+
+@media (max-width: 420px) {
+  .auth__card, .blocked__card { padding: 22px 18px; }
+}
