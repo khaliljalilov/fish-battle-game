@@ -228,7 +228,7 @@ function broadcastGift(payload) {
 
 /** Likes never buy coins — every 50 accumulated likes is worth a flat reward. */
 const LIKE_THRESHOLD = 50;
-const LIKE_REWARD_HP = 10;
+const LIKE_REWARD_HP = 30;
 /**
  * Accumulated likes per user since their last threshold reward.
  *
@@ -355,15 +355,13 @@ function applyFollowReward({ username, nickname, avatar }) {
 }
 
 /**
- * A chat message rewards immediately, same as follow — but a viewer can chat
- * far more often than they can follow (once) or gift (costs money), so this
- * constant is intentionally the smallest of the three free-path rewards to
- * keep the economy from being dominated by whoever types the most.
+ * Comments do not grant any HP. This is intentionally disabled so typing in
+ * chat is purely social, not a free heal path.
  */
-const CHAT_REWARD_HP = 5;
+const CHAT_REWARD_HP = 0;
 
 function applyChatReward({ username, nickname, avatar }) {
-  if (!username) return null;
+  if (!username || CHAT_REWARD_HP <= 0) return null;
 
   const isNew = !store.get(username);
   if (isNew && store.cache.size >= MAX_ACTIVE_FISH) {
@@ -1002,11 +1000,8 @@ function startTikTok(username) {
       const text = data.comment || data.content || data.message || '';
       log.info(`[chat] ${identity.username}: ${text}`);
 
-      const payload = applyChatReward({
-        username: identity.username,
-        nickname: identity.nickname || identity.username,
-        avatar: identity.avatar
-      });
+      // Comments are intentionally non-rewarding; no HP is granted for chat.
+      const payload = null;
 
       if (payload) broadcastGift(payload);
     } catch (err) {

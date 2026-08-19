@@ -38,6 +38,7 @@
  * (DynamicsCompressor, threshold -8dB, ratio 12:1) before reaching here.
  */
 const MASTER_DEFAULT = 0.88;
+const AMBIENT_ENABLED = false;
 
 export class Audio {
   constructor() {
@@ -87,6 +88,9 @@ export class Audio {
     this.ambientGain = this.ctx.createGain();
     this.ambientGain.gain.value = 0.0;
     this.ambientGain.connect(limiter);
+    if (!AMBIENT_ENABLED) {
+      this.ambientGain.gain.value = 0.0;
+    }
 
     this.eventGain = this.ctx.createGain();
     // Bus for every one-shot cue — bite/hurt/gift and every power sound
@@ -135,6 +139,11 @@ export class Audio {
    * through a slowly sweeping lowpass for the sense of moving water.
    */
   _startAmbient() {
+    if (!AMBIENT_ENABLED) {
+      this.ambientGain.gain.setTargetAtTime(0.0, this.ctx.currentTime, 0.05);
+      return;
+    }
+
     const { ctx } = this;
 
     for (const freq of [38, 55]) {
@@ -181,7 +190,7 @@ export class Audio {
 
   /** Dip the ambient bed briefly so an event reads clearly over it. */
   _duck(amount = 0.45, hold = 0.25) {
-    if (!this.ambientGain) return;
+    if (!this.ambientGain || !AMBIENT_ENABLED) return;
     const t = this.ctx.currentTime;
     const g = this.ambientGain.gain;
     g.cancelScheduledValues(t);
